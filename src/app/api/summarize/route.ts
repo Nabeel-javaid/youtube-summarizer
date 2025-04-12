@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import { getSubtitles, Caption } from 'youtube-captions-scraper';
 
-// Specify Node.js runtime instead of Edge Runtime
-export const runtime = 'nodejs';
+// Remove the Node.js runtime specification as it might be causing issues
+// export const runtime = 'nodejs';
 
 // Config to increase the function timeout
 export const maxDuration = 300; // 5 minutes
+
+// Enable streaming for this route
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -22,8 +26,19 @@ function corsHeaders() {
 }
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
-    return NextResponse.json({}, { headers: corsHeaders() });
+export async function OPTIONS(req: NextRequest) {
+    return new NextResponse(null, {
+        status: 204,
+        headers: corsHeaders(),
+    });
+}
+
+// Handle GET request - provide a simple healthcheck
+export async function GET(req: NextRequest) {
+    return NextResponse.json(
+        { status: 'API is running' },
+        { headers: corsHeaders() }
+    );
 }
 
 export async function POST(req: NextRequest) {

@@ -44,11 +44,30 @@ export default function Home() {
 
       console.log(`Sending request to: ${apiEndpoint}`);
 
+      // First check if the API is available
+      try {
+        const healthCheck = await fetch(`${baseUrl}/api/summarize`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!healthCheck.ok) {
+          console.error(`API health check failed: ${healthCheck.status}`);
+        } else {
+          console.log('API health check passed');
+        }
+      } catch (healthError) {
+        console.error('API health check error:', healthError);
+      }
+
+      // Now make the actual request
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        cache: 'no-store',
         body: JSON.stringify({ url }),
       });
 
@@ -58,6 +77,8 @@ export default function Home() {
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         console.error('Non-JSON response received:', contentType);
+        const textResponse = await response.text();
+        console.error('Response body:', textResponse.substring(0, 200) + '...');
         throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
       }
 
