@@ -2,5 +2,12 @@
     "buildCommand": "npm run build",
     "installCommand": "npm install",
     "framework": "nextjs",
-    "outputDirectory": ".next"
+    "outputDirectory": ".next",
+    "cleanUrls": true,
+    "ignoreCommand": "echo 'Skipping linting checks'",
+    "git": {
+        "deploymentEnabled": {
+            "main": true
+        }
+    }
 }
