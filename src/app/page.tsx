@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { ArrowUpRightIcon, CodeBracketSquareIcon } from '@heroicons/react/24/outline';
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -102,9 +103,28 @@ export default function Home() {
     setCopied(false);
   }, [summary, transcript]);
 
-  const fadeInVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
+  // Framer Motion Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 260,
+        damping: 20
+      }
+    }
   };
 
   // Don't render animations until hydration is complete
@@ -380,7 +400,7 @@ export default function Home() {
         >
           <p>© {new Date().getFullYear()} YouTube Summarizer. <span className="inline-flex items-center px-1 py-0.5 text-xs text-gray-400"><svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.0001 2.99988C16.9407 2.99988 21.0001 7.05931 21.0001 11.9999C21.0001 16.9405 16.9407 20.9999 12.0001 20.9999C7.05961 20.9999 3.00018 16.9405 3.00018 11.9999C3.00018 7.05931 7.05961 2.99988 12.0001 2.99988Z" stroke="currentColor" strokeWidth="1.5"></path><path d="M9 9.5V9C9 7.89543 9.89543 7 11 7H13C14.1046 7 15 7.89543 15 9V9.5C15 10.6046 14.1046 11.5 13 11.5H11C9.89543 11.5 9 12.3954 9 13.5V14C9 15.1046 9.89543 16 11 16H13C14.1046 16 15 15.1046 15 14V13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path></svg>Enhanced with AI</span></p>
         </motion.div>
-    </div>
+      </div>
     </main>
   );
 }

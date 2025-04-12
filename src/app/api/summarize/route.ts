@@ -1,8 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec, ExecException } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import fs from 'fs';
 import { YoutubeTranscript } from 'youtube-transcript';
 import { OpenAI } from 'openai';
 
@@ -13,80 +9,50 @@ interface TranscriptItem {
     offset: number;
 }
 
-const execAsync = promisify(exec);
-
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Helper to get the absolute path to the API directory
-function getApiDirectory() {
-    // In production on Vercel, the code is in a different location
-    if (process.env.VERCEL) {
-        return path.join(process.cwd(), 'api');
-    }
-
-    // In development
-    return path.join(process.cwd(), 'api');
-}
-
-// Find the available Python command (python or python3)
-async function findPythonCommand() {
-    try {
-        await execAsync('python --version');
-        return 'python';
-    } catch (error) {
-        try {
-            await execAsync('python3 --version');
-            return 'python3';
-        } catch (error) {
-            return null;
-        }
-    }
-}
-
 export async function POST(req: NextRequest) {
     try {
-        const { url } = await req.json();
+        const body = await req.json();
+        const { url } = body;
 
         if (!url) {
-            return NextResponse.json({ error: 'URL is required' }, { status: 400 });
+            return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
         }
 
-        // Extract video ID from the URL
+        // Extract video ID from URL
         const videoId = extractVideoId(url);
         if (!videoId) {
             return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
         }
 
-        // Get video transcript
-        const transcriptResponse = await YoutubeTranscript.fetchTranscript(videoId);
-        if (!transcriptResponse || transcriptResponse.length === 0) {
-            return NextResponse.json({ error: 'Unable to get transcript for this video' }, { status: 400 });
+        // Fetch transcript from YouTube
+        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+        if (!transcript || transcript.length === 0) {
+            return NextResponse.json({ error: 'Could not fetch transcript for this video' }, { status: 404 });
         }
 
-        // Convert transcript to text and format it properly
-        const formattedTranscript = formatTranscript(transcriptResponse);
+        // Format transcript for better readability
+        const formattedTranscript = formatTranscript(transcript);
 
         // Get video title
-        let videoTitle = await fetchVideoTitle(videoId);
-        if (!videoTitle || videoTitle === 'Unknown Video Title') {
-            // Try alternate method to get the title
-            videoTitle = await fetchVideoTitleWithFetch(videoId);
-        }
+        const videoTitle = await fetchVideoTitle(videoId);
 
-        // Summarize transcript with OpenAI
+        // Summarize the transcript
         const summary = await summarizeTranscript(formattedTranscript);
 
         return NextResponse.json({
+            success: true,
+            videoId,
             summary,
             transcript: formattedTranscript,
-            title: videoTitle,
-            videoId
+            videoTitle
         });
     } catch (error) {
-        console.error('Error summarizing video:', error);
-        return NextResponse.json({ error: 'Failed to summarize video' }, { status: 500 });
+        console.error('Error in POST handler:', error);
+        return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
     }
 }
 
@@ -101,7 +67,7 @@ function formatTranscript(transcriptItems: TranscriptItem[]): string {
     // Group transcript items into sentences and paragraphs
     let transcript = '';
     let currentSentence = '';
-    let paragraphs: string[] = [];
+    const paragraphs: string[] = [];
 
     // First pass: combine into sentences
     for (let i = 0; i < transcriptItems.length; i++) {
