@@ -141,31 +141,6 @@ async function fetchVideoTitle(videoId: string): Promise<string> {
     }
 }
 
-async function fetchVideoTitleWithFetch(videoId: string): Promise<string> {
-    try {
-        // Try to fetch the title directly from the YouTube page
-        const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
-        const html = await response.text();
-
-        // Extract title from HTML using regex
-        const titleMatch = html.match(/<title>(.*?)<\/title>/);
-        if (titleMatch && titleMatch[1]) {
-            return titleMatch[1].replace(' - YouTube', '');
-        }
-
-        // Try another method (og:title meta tag)
-        const ogTitleMatch = html.match(/<meta property="og:title" content="(.*?)"/);
-        if (ogTitleMatch && ogTitleMatch[1]) {
-            return ogTitleMatch[1];
-        }
-
-        return 'YouTube Video';
-    } catch (error) {
-        console.error('Error fetching video title with fetch:', error);
-        return 'YouTube Video';
-    }
-}
-
 async function summarizeTranscript(transcript: string): Promise<string> {
     try {
         const response = await openai.chat.completions.create({

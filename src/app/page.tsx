@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpRightIcon, CodeBracketSquareIcon } from '@heroicons/react/24/outline';
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -102,30 +101,6 @@ export default function Home() {
     // Reset copy state when summary/transcript changes
     setCopied(false);
   }, [summary, transcript]);
-
-  // Framer Motion Variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 260,
-        damping: 20
-      }
-    }
-  };
 
   // Don't render animations until hydration is complete
   if (!isHydrated) {
