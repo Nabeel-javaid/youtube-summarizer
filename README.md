@@ -23,7 +23,7 @@ A modern web application that takes a YouTube video URL and generates a concise 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/youtube-summarizer.git
+   git clone https://github.com/Nabeel-javaid/youtube-summarizer.git
    cd youtube-summarizer
    ```
 
