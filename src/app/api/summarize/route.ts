@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { YoutubeTranscript } from 'youtube-transcript';
 import { OpenAI } from 'openai';
-
-// Define typescript interface for transcript item
-interface TranscriptItem {
-    text: string;
-    duration: number;
-    offset: number;
-}
+import { getSubtitles } from 'youtube-captions-scraper';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -28,28 +21,37 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
         }
 
-        // Fetch transcript from YouTube
-        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-        if (!transcript || transcript.length === 0) {
+        try {
+            // Fetch transcript using youtube-captions-scraper
+            const captions = await getSubtitles({
+                videoID: videoId,
+                lang: 'en' // default to English
+            });
+
+            if (!captions || captions.length === 0) {
+                return NextResponse.json({ error: 'Could not fetch transcript for this video' }, { status: 404 });
+            }
+
+            // Format transcript for better readability
+            const formattedTranscript = formatTranscript(captions);
+
+            // Get video title
+            const videoTitle = await fetchVideoTitle(videoId);
+
+            // Summarize the transcript
+            const summary = await summarizeTranscript(formattedTranscript);
+
+            return NextResponse.json({
+                success: true,
+                videoId,
+                summary,
+                transcript: formattedTranscript,
+                videoTitle
+            });
+        } catch (captionError) {
+            console.error('Error fetching captions:', captionError);
             return NextResponse.json({ error: 'Could not fetch transcript for this video' }, { status: 404 });
         }
-
-        // Format transcript for better readability
-        const formattedTranscript = formatTranscript(transcript);
-
-        // Get video title
-        const videoTitle = await fetchVideoTitle(videoId);
-
-        // Summarize the transcript
-        const summary = await summarizeTranscript(formattedTranscript);
-
-        return NextResponse.json({
-            success: true,
-            videoId,
-            summary,
-            transcript: formattedTranscript,
-            videoTitle
-        });
     } catch (error) {
         console.error('Error in POST handler:', error);
         return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
@@ -63,15 +65,15 @@ function extractVideoId(url: string): string | null {
     return (match && match[2].length === 11) ? match[2] : null;
 }
 
-function formatTranscript(transcriptItems: TranscriptItem[]): string {
+function formatTranscript(captionsItems: any[]): string {
     // Group transcript items into sentences and paragraphs
     let transcript = '';
     let currentSentence = '';
     const paragraphs: string[] = [];
 
     // First pass: combine into sentences
-    for (let i = 0; i < transcriptItems.length; i++) {
-        let text = transcriptItems[i].text.trim();
+    for (let i = 0; i < captionsItems.length; i++) {
+        let text = captionsItems[i].text.trim();
 
         // Fix common HTML entities
         text = text.replace(/&amp;/g, '&')
@@ -88,7 +90,7 @@ function formatTranscript(transcriptItems: TranscriptItem[]): string {
         currentSentence += text;
 
         // If this text ends with sentence-ending punctuation or it's the last item
-        if (text.match(/[.!?]$/) || i === transcriptItems.length - 1) {
+        if (text.match(/[.!?]$/) || i === captionsItems.length - 1) {
             // Add period at the end if missing
             if (!currentSentence.match(/[.!?]$/)) {
                 currentSentence += '.';
@@ -123,17 +125,22 @@ function formatTranscript(transcriptItems: TranscriptItem[]): string {
 
 async function fetchVideoTitle(videoId: string): Promise<string> {
     try {
-        if (!process.env.YOUTUBE_API_KEY) {
-            console.warn('YOUTUBE_API_KEY is not set in environment variables');
-            return 'YouTube Video';
+        // Try to fetch the title directly from the YouTube page
+        const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+        const html = await response.text();
+
+        // Extract title from HTML using regex
+        const titleMatch = html.match(/<title>(.*?)<\/title>/);
+        if (titleMatch && titleMatch[1]) {
+            return titleMatch[1].replace(' - YouTube', '');
         }
 
-        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${process.env.YOUTUBE_API_KEY}&part=snippet`);
-        const data = await response.json();
-
-        if (data.items && data.items.length > 0) {
-            return data.items[0].snippet.title;
+        // Try another method (og:title meta tag)
+        const ogTitleMatch = html.match(/<meta property="og:title" content="(.*?)"/);
+        if (ogTitleMatch && ogTitleMatch[1]) {
+            return ogTitleMatch[1];
         }
+
         return 'YouTube Video';
     } catch (error) {
         console.error('Error fetching video title:', error);
