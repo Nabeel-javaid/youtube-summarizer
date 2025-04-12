@@ -2,19 +2,26 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-    // Check if it's an API route
+    // Only apply CORS headers to API routes
     if (request.nextUrl.pathname.startsWith('/api/')) {
-        // Get the origin that made the request
-        const origin = request.headers.get('origin') || '*';
+        // For OPTIONS requests, return 204 No Content
+        if (request.method === 'OPTIONS') {
+            return new NextResponse(null, {
+                status: 204,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                    'Access-Control-Max-Age': '86400',
+                },
+            });
+        }
 
-        // Create response object
+        // For other requests, add CORS headers
         const response = NextResponse.next();
-
-        // Add the CORS headers to the response
-        response.headers.set('Access-Control-Allow-Origin', origin);
+        response.headers.set('Access-Control-Allow-Origin', '*');
         response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        response.headers.set('Access-Control-Max-Age', '86400');
 
         return response;
     }

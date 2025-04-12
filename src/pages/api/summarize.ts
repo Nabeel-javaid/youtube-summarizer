@@ -1,144 +1,102 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextApiRequest, NextApiResponse } from 'next';
 import { OpenAI } from 'openai';
-import { getSubtitles, Caption } from 'youtube-captions-scraper';
+import { getSubtitles } from 'youtube-captions-scraper';
 
-// Explicitly set which runtime to use - use Edge for better compatibility
-export const runtime = 'edge';
-
-// Force dynamic rendering for API routes
-export const dynamic = 'force-dynamic';
-
-// Disable caching
-export const fetchCache = 'force-no-store';
-
+// Initialize OpenAI
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || '',
 });
 
-// Helper function to handle CORS headers
-function corsHeaders() {
-    return {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Content-Type': 'application/json',
-    };
-}
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-// Handle OPTIONS request for CORS preflight
-export async function OPTIONS(request: NextRequest) {
-    return new NextResponse(null, {
-        status: 204,
-        headers: corsHeaders(),
-    });
-}
+    // Handle OPTIONS request (preflight)
+    if (req.method === 'OPTIONS') {
+        res.status(204).end();
+        return;
+    }
 
-// Simple health check endpoint
-export async function GET() {
-    return NextResponse.json({ status: 'API is running' }, {
-        status: 200,
-        headers: corsHeaders()
-    });
-}
+    // Health check for GET requests
+    if (req.method === 'GET') {
+        return res.status(200).json({ status: 'API is running' });
+    }
 
-export async function POST(request: NextRequest) {
-    // Set CORS headers in the response
-    const responseHeaders = corsHeaders();
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
 
     try {
         // Check for OpenAI API key
         if (!process.env.OPENAI_API_KEY) {
-            console.error('Missing OpenAI API key');
-            return NextResponse.json(
-                { error: 'Server configuration error: Missing API key' },
-                { status: 500, headers: responseHeaders }
-            );
+            return res.status(500).json({ error: 'Server configuration error: Missing API key' });
         }
 
-        // Parse request body
-        let body;
-        try {
-            body = await request.json();
-        } catch (parseError) {
-            console.error('Error parsing request JSON:', parseError);
-            return NextResponse.json(
-                { error: 'Invalid request: Could not parse JSON' },
-                { status: 400, headers: responseHeaders }
-            );
-        }
-
-        // Get URL from request
-        const { url } = body;
+        // Get URL from request body
+        const { url } = req.body;
         if (!url) {
-            return NextResponse.json(
-                { error: 'Missing URL parameter' },
-                { status: 400, headers: responseHeaders }
-            );
+            return res.status(400).json({ error: 'Missing URL parameter' });
         }
 
-        // Extract video ID
+        // Extract video ID from URL
         const videoId = extractVideoId(url);
         if (!videoId) {
-            return NextResponse.json(
-                { error: 'Invalid YouTube URL' },
-                { status: 400, headers: responseHeaders }
-            );
+            return res.status(400).json({ error: 'Invalid YouTube URL' });
         }
 
         try {
-            // Fetch captions
+            // Fetch transcript using youtube-captions-scraper
             const captions = await getSubtitles({
                 videoID: videoId,
                 lang: 'en'
             });
 
             if (!captions || captions.length === 0) {
-                return NextResponse.json(
-                    { error: 'Could not fetch transcript for this video' },
-                    { status: 404, headers: responseHeaders }
-                );
+                return res.status(404).json({ error: 'Could not fetch transcript for this video' });
             }
 
-            // Format transcript
+            // Format transcript for better readability
             const formattedTranscript = formatTranscript(captions);
 
             // Get video title
             const videoTitle = await fetchVideoTitle(videoId);
 
-            // Generate summary
+            // Summarize the transcript
             const summary = await summarizeTranscript(formattedTranscript);
 
             // Return success response
-            return NextResponse.json({
+            return res.status(200).json({
                 success: true,
                 videoId,
                 summary,
                 transcript: formattedTranscript,
                 videoTitle
-            }, { headers: responseHeaders });
-
+            });
         } catch (captionError) {
             console.error('Error fetching captions:', captionError);
-            return NextResponse.json({
+            return res.status(404).json({
                 error: `Could not fetch transcript: ${captionError instanceof Error ? captionError.message : 'Unknown error'}`
-            }, { status: 404, headers: responseHeaders });
+            });
         }
     } catch (error) {
-        console.error('Error in POST handler:', error);
-        return NextResponse.json({
+        console.error('Error in API handler:', error);
+        return res.status(500).json({
             error: `Server error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }, { status: 500, headers: responseHeaders });
+        });
     }
 }
 
+// Utility functions
 function extractVideoId(url: string): string | null {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
-
     return (match && match[2].length === 11) ? match[2] : null;
 }
 
-function formatTranscript(captionsItems: Caption[]): string {
+function formatTranscript(captionsItems: any[]): string {
     // Group transcript items into sentences and paragraphs
     let transcript = '';
     let currentSentence = '';
@@ -200,7 +158,6 @@ async function fetchVideoTitle(videoId: string): Promise<string> {
     try {
         // Try to fetch the title directly from the YouTube page
         const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
-
         if (!response.ok) {
             return 'YouTube Video';
         }
@@ -243,17 +200,17 @@ async function summarizeTranscript(transcript: string): Promise<string> {
                 {
                     "role": "system",
                     "content": `You are an AI assistant specialized in summarizing YouTube video transcripts. 
-          Your task is to provide a comprehensive, well-structured summary of the transcript in clear, concise language.
-          
-          Follow these guidelines:
-          1. Organize the summary into paragraphs with logical flow
-          2. Identify and include the key points, main arguments, and important details
-          3. Maintain the original meaning and intent while improving grammar and clarity
-          4. Use proper punctuation and correct any grammatical errors from the transcript
-          5. Format the summary with clear paragraph breaks (use double line breaks between paragraphs)
-          6. Keep your tone neutral and informative
-          7. Don't include phrases like "the transcript discusses" or "in this video"
-          8. Focus on providing valuable information to someone who hasn't watched the video`
+Your task is to provide a comprehensive, well-structured summary of the transcript in clear, concise language.
+
+Follow these guidelines:
+1. Organize the summary into paragraphs with logical flow
+2. Identify and include the key points, main arguments, and important details
+3. Maintain the original meaning and intent while improving grammar and clarity
+4. Use proper punctuation and correct any grammatical errors from the transcript
+5. Format the summary with clear paragraph breaks (use double line breaks between paragraphs)
+6. Keep your tone neutral and informative
+7. Don't include phrases like "the transcript discusses" or "in this video"
+8. Focus on providing valuable information to someone who hasn't watched the video`
                 },
                 {
                     "role": "user",

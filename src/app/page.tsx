@@ -21,15 +21,14 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Reset states
     setLoading(true);
-    setError('');
+    setError(null);
     setSummary('');
     setTranscript('');
     setVideoTitle('');
-    setVideoId('');
-    setActiveTab('summary');
 
-    // Basic URL validation before sending to server
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
     if (!youtubeRegex.test(url)) {
       setError('Please enter a valid YouTube URL');
@@ -38,73 +37,50 @@ export default function Home() {
     }
 
     try {
-      // Get base URL to ensure correct API endpoint in both development and production
-      const baseUrl = window.location.origin;
-      const apiEndpoint = `${baseUrl}/api/summarize`;
+      console.log(`Submitting request to API for: ${url}`);
 
-      console.log(`Sending request to: ${apiEndpoint}`);
+      // Use the Pages Router API endpoint
+      const apiEndpoint = '/api/summarize';
+      console.log(`Using API endpoint: ${apiEndpoint}`);
 
-      // First check if the API is available
-      try {
-        const healthCheck = await fetch(`${baseUrl}/api/summarize`, {
-          method: 'GET',
-          cache: 'no-store'
-        });
-
-        if (!healthCheck.ok) {
-          console.error(`API health check failed: ${healthCheck.status}`);
-        } else {
-          console.log('API health check passed');
-        }
-      } catch (healthError) {
-        console.error('API health check error:', healthError);
-      }
-
-      // Now make the actual request
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
-        cache: 'no-store',
         body: JSON.stringify({ url }),
       });
 
       console.log(`Response status: ${response.status}`);
 
-      // For non-JSON responses, handle separately
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Non-JSON response received:', contentType);
-        const textResponse = await response.text();
-        console.error('Response body:', textResponse.substring(0, 200) + '...');
-        throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
-      }
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('JSON parsing error:', jsonError);
-        throw new Error('Failed to parse API response. The server might be experiencing issues.');
-      }
-
+      // Check if the response is OK and contains JSON
       if (!response.ok) {
-        throw new Error(data?.error || `Server error: ${response.status}`);
+        // Try to get error message from response
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `API error: ${response.status}`);
+        } catch (jsonError) {
+          // If not JSON, get text
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText);
+          throw new Error(`API error (${response.status}): ${errorText.substring(0, 100)}...`);
+        }
       }
 
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setSummary(data.summary || 'Summary not available');
-        if (data.transcript) setTranscript(data.transcript);
-        if (data.videoTitle) setVideoTitle(data.videoTitle);
-        if (data.videoId) setVideoId(data.videoId);
+      // Parse the JSON response
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to summarize video');
       }
-    } catch (err) {
-      setError('Error: ' + (err instanceof Error ? err.message : 'Unknown error occurred'));
-      console.error('Form submission error:', err);
+
+      // Update states with the fetched data
+      setSummary(data.summary);
+      setTranscript(data.transcript);
+      setVideoTitle(data.videoTitle);
+    } catch (error) {
+      console.error('Error during API request:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
