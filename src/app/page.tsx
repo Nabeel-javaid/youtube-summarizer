@@ -134,16 +134,6 @@ export default function Home() {
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 animate-gradient">
               YouTube Summarizer
             </span>
-            <motion.div
-              className="absolute top-0 right-0 -mt-6 md:-mt-7 mr-2 md:mr-4 px-3 py-1 bg-gradient-to-r from-purple-600/40 to-indigo-600/40 rounded-full backdrop-blur-sm border border-purple-500/30 shadow-md"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-            >
-              <span className="text-xs md:text-sm font-medium tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-cyan-300">
-                Powered by AI
-              </span>
-            </motion.div>
           </h1>
           <motion.p
             className="text-lg text-gray-400 max-w-2xl mx-auto"
@@ -152,6 +142,14 @@ export default function Home() {
             transition={{ delay: 0.4, duration: 0.8 }}
           >
             Get concise, meaningful summaries of any YouTube video in seconds
+            <motion.span
+              className="ml-2 inline-flex items-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.4 }}
+            >
+              <span className="text-xs text-gray-500 bg-gradient-to-r from-purple-400/10 to-indigo-400/10 px-2 py-0.5 rounded-sm border-l border-purple-500/20">ai</span>
+            </motion.span>
           </motion.p>
         </motion.div>
 
@@ -380,7 +378,7 @@ export default function Home() {
           animate={{ opacity: 1 }}
           transition={{ delay: 1, duration: 1 }}
         >
-          <p>© {new Date().getFullYear()} YouTube Summarizer. Powered by Next.js and AI.</p>
+          <p>© {new Date().getFullYear()} YouTube Summarizer. <span className="inline-flex items-center px-1 py-0.5 text-xs text-gray-400"><svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.0001 2.99988C16.9407 2.99988 21.0001 7.05931 21.0001 11.9999C21.0001 16.9405 16.9407 20.9999 12.0001 20.9999C7.05961 20.9999 3.00018 16.9405 3.00018 11.9999C3.00018 7.05931 7.05961 2.99988 12.0001 2.99988Z" stroke="currentColor" strokeWidth="1.5"></path><path d="M9 9.5V9C9 7.89543 9.89543 7 11 7H13C14.1046 7 15 7.89543 15 9V9.5C15 10.6046 14.1046 11.5 13 11.5H11C9.89543 11.5 9 12.3954 9 13.5V14C9 15.1046 9.89543 16 11 16H13C14.1046 16 15 15.1046 15 14V13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path></svg>Enhanced with AI</span></p>
         </motion.div>
       </div>
     </main>
