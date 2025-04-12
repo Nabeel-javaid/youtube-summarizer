@@ -2,16 +2,42 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import { getSubtitles, Caption } from 'youtube-captions-scraper';
 
+// Specify Node.js runtime instead of Edge Runtime
+export const runtime = 'nodejs';
+
+// Config to increase the function timeout
+export const maxDuration = 300; // 5 minutes
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Helper function to handle CORS headers
+function corsHeaders() {
+    return {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
+}
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+    return NextResponse.json({}, { headers: corsHeaders() });
+}
+
 export async function POST(req: NextRequest) {
     try {
+        // Set CORS headers in the response
+        const responseHeaders = corsHeaders();
+
         // Check for OpenAI API key
         if (!process.env.OPENAI_API_KEY) {
             console.error('Missing OpenAI API key');
-            return NextResponse.json({ error: 'Server configuration error: Missing API key' }, { status: 500 });
+            return NextResponse.json(
+                { error: 'Server configuration error: Missing API key' },
+                { status: 500, headers: responseHeaders }
+            );
         }
 
         let body;
@@ -19,19 +45,28 @@ export async function POST(req: NextRequest) {
             body = await req.json();
         } catch (parseError) {
             console.error('Error parsing request JSON:', parseError);
-            return NextResponse.json({ error: 'Invalid request: Could not parse JSON' }, { status: 400 });
+            return NextResponse.json(
+                { error: 'Invalid request: Could not parse JSON' },
+                { status: 400, headers: responseHeaders }
+            );
         }
 
         const { url } = body;
 
         if (!url) {
-            return NextResponse.json({ error: 'Missing URL parameter' }, { status: 400 });
+            return NextResponse.json(
+                { error: 'Missing URL parameter' },
+                { status: 400, headers: responseHeaders }
+            );
         }
 
         // Extract video ID from URL
         const videoId = extractVideoId(url);
         if (!videoId) {
-            return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
+            return NextResponse.json(
+                { error: 'Invalid YouTube URL' },
+                { status: 400, headers: responseHeaders }
+            );
         }
 
         try {
@@ -44,7 +79,10 @@ export async function POST(req: NextRequest) {
 
             if (!captions || captions.length === 0) {
                 console.error('No captions found for video');
-                return NextResponse.json({ error: 'Could not fetch transcript for this video' }, { status: 404 });
+                return NextResponse.json(
+                    { error: 'Could not fetch transcript for this video' },
+                    { status: 404, headers: responseHeaders }
+                );
             }
 
             console.log(`Successfully fetched ${captions.length} caption segments`);
@@ -68,18 +106,18 @@ export async function POST(req: NextRequest) {
                 summary,
                 transcript: formattedTranscript,
                 videoTitle
-            });
+            }, { headers: responseHeaders });
         } catch (captionError) {
             console.error('Error fetching captions:', captionError);
             return NextResponse.json({
                 error: `Could not fetch transcript: ${captionError instanceof Error ? captionError.message : 'Unknown error'}`
-            }, { status: 404 });
+            }, { status: 404, headers: responseHeaders });
         }
     } catch (error) {
         console.error('Error in POST handler:', error);
         return NextResponse.json({
             error: `Server error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }, { status: 500 });
+        }, { status: 500, headers: corsHeaders() });
     }
 }
 

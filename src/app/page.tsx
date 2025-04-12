@@ -29,14 +29,37 @@ export default function Home() {
     setVideoId('');
     setActiveTab('summary');
 
+    // Basic URL validation before sending to server
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
+    if (!youtubeRegex.test(url)) {
+      setError('Please enter a valid YouTube URL');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/summarize', {
+      // Get base URL to ensure correct API endpoint in both development and production
+      const baseUrl = window.location.origin;
+      const apiEndpoint = `${baseUrl}/api/summarize`;
+
+      console.log(`Sending request to: ${apiEndpoint}`);
+
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url }),
       });
+
+      console.log(`Response status: ${response.status}`);
+
+      // For non-JSON responses, handle separately
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Non-JSON response received:', contentType);
+        throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}`);
+      }
 
       let data;
       try {
