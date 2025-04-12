@@ -38,22 +38,29 @@ export default function Home() {
         body: JSON.stringify({ url }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parsing error:', jsonError);
+        throw new Error('Failed to parse API response. The server might be experiencing issues.');
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to summarize video');
+        throw new Error(data?.error || `Server error: ${response.status}`);
       }
 
       if (data.error) {
         setError(data.error);
       } else {
-        setSummary(data.summary);
+        setSummary(data.summary || 'Summary not available');
         if (data.transcript) setTranscript(data.transcript);
-        if (data.title) setVideoTitle(data.title);
+        if (data.videoTitle) setVideoTitle(data.videoTitle);
         if (data.videoId) setVideoId(data.videoId);
       }
     } catch (err) {
       setError('Error: ' + (err instanceof Error ? err.message : 'Unknown error occurred'));
+      console.error('Form submission error:', err);
     } finally {
       setLoading(false);
     }
@@ -375,7 +382,7 @@ export default function Home() {
         >
           <p>© {new Date().getFullYear()} YouTube Summarizer. <span className="inline-flex items-center px-1 py-0.5 text-xs text-gray-400"><svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.0001 2.99988C16.9407 2.99988 21.0001 7.05931 21.0001 11.9999C21.0001 16.9405 16.9407 20.9999 12.0001 20.9999C7.05961 20.9999 3.00018 16.9405 3.00018 11.9999C3.00018 7.05931 7.05961 2.99988 12.0001 2.99988Z" stroke="currentColor" strokeWidth="1.5"></path><path d="M9 9.5V9C9 7.89543 9.89543 7 11 7H13C14.1046 7 15 7.89543 15 9V9.5C15 10.6046 14.1046 11.5 13 11.5H11C9.89543 11.5 9 12.3954 9 13.5V14C9 15.1046 9.89543 16 11 16H13C14.1046 16 15 15.1046 15 14V13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path></svg>Enhanced with AI</span></p>
         </motion.div>
-    </div>
+      </div>
     </main>
   );
 }

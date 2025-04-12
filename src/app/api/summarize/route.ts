@@ -8,7 +8,20 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
+        // Check for OpenAI API key
+        if (!process.env.OPENAI_API_KEY) {
+            console.error('Missing OpenAI API key');
+            return NextResponse.json({ error: 'Server configuration error: Missing API key' }, { status: 500 });
+        }
+
+        let body;
+        try {
+            body = await req.json();
+        } catch (parseError) {
+            console.error('Error parsing request JSON:', parseError);
+            return NextResponse.json({ error: 'Invalid request: Could not parse JSON' }, { status: 400 });
+        }
+
         const { url } = body;
 
         if (!url) {
@@ -23,23 +36,31 @@ export async function POST(req: NextRequest) {
 
         try {
             // Fetch transcript using youtube-captions-scraper
+            console.log(`Fetching captions for video ID: ${videoId}`);
             const captions = await getSubtitles({
                 videoID: videoId,
                 lang: 'en' // default to English
             });
 
             if (!captions || captions.length === 0) {
+                console.error('No captions found for video');
                 return NextResponse.json({ error: 'Could not fetch transcript for this video' }, { status: 404 });
             }
 
+            console.log(`Successfully fetched ${captions.length} caption segments`);
+
             // Format transcript for better readability
             const formattedTranscript = formatTranscript(captions);
+            console.log(`Formatted transcript length: ${formattedTranscript.length} characters`);
 
             // Get video title
             const videoTitle = await fetchVideoTitle(videoId);
+            console.log(`Video title: ${videoTitle}`);
 
             // Summarize the transcript
+            console.log('Calling OpenAI for summarization...');
             const summary = await summarizeTranscript(formattedTranscript);
+            console.log(`Generated summary of ${summary.length} characters`);
 
             return NextResponse.json({
                 success: true,
@@ -50,11 +71,15 @@ export async function POST(req: NextRequest) {
             });
         } catch (captionError) {
             console.error('Error fetching captions:', captionError);
-            return NextResponse.json({ error: 'Could not fetch transcript for this video' }, { status: 404 });
+            return NextResponse.json({
+                error: `Could not fetch transcript: ${captionError instanceof Error ? captionError.message : 'Unknown error'}`
+            }, { status: 404 });
         }
     } catch (error) {
         console.error('Error in POST handler:', error);
-        return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
+        return NextResponse.json({
+            error: `Server error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }, { status: 500 });
     }
 }
 
@@ -127,6 +152,12 @@ async function fetchVideoTitle(videoId: string): Promise<string> {
     try {
         // Try to fetch the title directly from the YouTube page
         const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+
+        if (!response.ok) {
+            console.error(`YouTube page fetch failed with status: ${response.status}`);
+            return 'YouTube Video';
+        }
+
         const html = await response.text();
 
         // Extract title from HTML using regex
@@ -141,6 +172,7 @@ async function fetchVideoTitle(videoId: string): Promise<string> {
             return ogTitleMatch[1];
         }
 
+        console.warn('Could not extract title from YouTube page');
         return 'YouTube Video';
     } catch (error) {
         console.error('Error fetching video title:', error);
@@ -150,6 +182,17 @@ async function fetchVideoTitle(videoId: string): Promise<string> {
 
 async function summarizeTranscript(transcript: string): Promise<string> {
     try {
+        if (!openai.apiKey) {
+            console.error('OpenAI API key is not set');
+            throw new Error('OpenAI API key is not configured');
+        }
+
+        // For very long transcripts, trim to avoid token limits
+        const maxChars = 15000;
+        const trimmedTranscript = transcript.length > maxChars
+            ? transcript.substring(0, maxChars) + "...[transcript trimmed due to length]"
+            : transcript;
+
         const response = await openai.chat.completions.create({
             model: "gpt-3.5-turbo-16k",
             messages: [
@@ -170,16 +213,21 @@ async function summarizeTranscript(transcript: string): Promise<string> {
                 },
                 {
                     "role": "user",
-                    "content": `Please summarize the following YouTube transcript:\n\n${transcript}`
+                    "content": `Please summarize the following YouTube transcript:\n\n${trimmedTranscript}`
                 }
             ],
             temperature: 0.5,
             max_tokens: 4000,
         });
 
-        return response.choices[0].message.content || 'Summary not available';
+        if (!response.choices[0].message.content) {
+            console.error('Empty response from OpenAI');
+            return 'Summary not available due to API response issue';
+        }
+
+        return response.choices[0].message.content;
     } catch (error) {
         console.error('Error calling OpenAI:', error);
-        throw new Error('Failed to generate summary');
+        throw new Error(`Failed to generate summary: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 } 
