@@ -134,14 +134,16 @@ export default function Home() {
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 animate-gradient">
               YouTube Summarizer
             </span>
-            <motion.span
-              className="absolute -top-1 left-1/2 transform -translate-x-1/2 text-sm text-white/20 font-normal tracking-widest"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 1 }}
+            <motion.div
+              className="absolute top-0 right-0 -mt-6 md:-mt-7 mr-2 md:mr-4 px-3 py-1 bg-gradient-to-r from-purple-600/40 to-indigo-600/40 rounded-full backdrop-blur-sm border border-purple-500/30 shadow-md"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
             >
-              POWERED BY AI
-            </motion.span>
+              <span className="text-xs md:text-sm font-medium tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-cyan-300">
+                Powered by AI
+              </span>
+            </motion.div>
           </h1>
           <motion.p
             className="text-lg text-gray-400 max-w-2xl mx-auto"
