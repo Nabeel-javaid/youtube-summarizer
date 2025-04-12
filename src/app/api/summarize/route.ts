@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
-import { getSubtitles } from 'youtube-captions-scraper';
+import { getSubtitles, Caption } from 'youtube-captions-scraper';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -65,7 +65,7 @@ function extractVideoId(url: string): string | null {
     return (match && match[2].length === 11) ? match[2] : null;
 }
 
-function formatTranscript(captionsItems: any[]): string {
+function formatTranscript(captionsItems: Caption[]): string {
     // Group transcript items into sentences and paragraphs
     let transcript = '';
     let currentSentence = '';
