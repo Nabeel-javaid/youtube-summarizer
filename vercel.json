@@ -4,7 +4,6 @@
     "framework": "nextjs",
     "outputDirectory": ".next",
     "cleanUrls": true,
-    "ignoreCommand": "echo 'Skipping linting checks'",
     "git": {
         "deploymentEnabled": {
             "main": true
