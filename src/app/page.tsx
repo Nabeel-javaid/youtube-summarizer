@@ -6,12 +6,14 @@ import { motion } from 'framer-motion';
 export default function Home() {
   const [url, setUrl] = useState('');
   const [summary, setSummary] = useState('');
+  const [transcript, setTranscript] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
   const [videoId, setVideoId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [activeTab, setActiveTab] = useState('summary');
 
   useEffect(() => {
     setIsHydrated(true);
@@ -22,8 +24,10 @@ export default function Home() {
     setLoading(true);
     setError('');
     setSummary('');
+    setTranscript('');
     setVideoTitle('');
     setVideoId('');
+    setActiveTab('summary');
 
     try {
       const response = await fetch('/api/summarize', {
@@ -44,6 +48,7 @@ export default function Home() {
         setError(data.error);
       } else {
         setSummary(data.summary);
+        if (data.transcript) setTranscript(data.transcript);
         if (data.title) setVideoTitle(data.title);
         if (data.videoId) setVideoId(data.videoId);
       }
@@ -69,18 +74,33 @@ export default function Home() {
       </motion.p>
     ));
 
-  const copyToClipboard = () => {
-    if (summary) {
-      navigator.clipboard.writeText(summary);
+  // Format transcript with paragraphs
+  const formattedTranscript = transcript
+    .split('\n\n')
+    .map((paragraph, index) => (
+      <motion.p
+        key={index}
+        className="mb-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.05 }}
+      >
+        {paragraph}
+      </motion.p>
+    ));
+
+  const copyToClipboard = (text: string) => {
+    if (text) {
+      navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
   useEffect(() => {
-    // Reset copy state when summary changes
+    // Reset copy state when summary/transcript changes
     setCopied(false);
-  }, [summary]);
+  }, [summary, transcript]);
 
   const fadeInVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -244,8 +264,38 @@ export default function Home() {
                         <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">{videoTitle}</h2>
                       )}
                     </div>
+                  </motion.div>
+
+                  {/* Tabs for Summary and Transcript */}
+                  <motion.div
+                    className="flex border-b border-gray-700/50 mb-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                  >
+                    <button
+                      onClick={() => setActiveTab('summary')}
+                      className={`px-4 py-3 font-medium text-sm transition-all duration-300 ${activeTab === 'summary'
+                          ? 'text-purple-400 border-b-2 border-purple-500'
+                          : 'text-gray-400 hover:text-gray-300'
+                        }`}
+                    >
+                      AI Summary
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('transcript')}
+                      className={`px-4 py-3 font-medium text-sm transition-all duration-300 ${activeTab === 'transcript'
+                          ? 'text-purple-400 border-b-2 border-purple-500'
+                          : 'text-gray-400 hover:text-gray-300'
+                        }`}
+                    >
+                      Full Transcript
+                    </button>
+
+                    <div className="flex-1"></div>
+
                     <motion.button
-                      onClick={copyToClipboard}
+                      onClick={() => copyToClipboard(activeTab === 'summary' ? summary : transcript)}
                       className="ml-4 flex items-center space-x-2 text-sm px-4 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50 transition-all duration-300"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -266,31 +316,55 @@ export default function Home() {
                           <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
                           </svg>
-                          <span>Copy summary</span>
+                          <span>Copy {activeTab === 'summary' ? 'summary' : 'transcript'}</span>
                         </>
                       )}
                     </motion.button>
                   </motion.div>
 
-                  <motion.div
-                    className="bg-gray-900/30 backdrop-blur-sm rounded-xl p-6 border border-gray-700/30 relative overflow-hidden"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-cyan-500/5 to-purple-500/5 opacity-60"></div>
-                    <div className="absolute -right-40 -bottom-32 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-[0.03] animate-pulse"></div>
+                  {activeTab === 'summary' ? (
+                    <motion.div
+                      className="bg-gray-900/30 backdrop-blur-sm rounded-xl p-6 border border-gray-700/30 relative overflow-hidden"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.3 }}
+                      key="summary-tab"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-cyan-500/5 to-purple-500/5 opacity-60"></div>
+                      <div className="absolute -right-40 -bottom-32 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-[0.03] animate-pulse"></div>
 
-                    <h3 className="text-xl font-semibold mb-6 text-gray-200 relative">
-                      <span className="inline-block relative">
-                        Summary
-                        <span className="absolute -bottom-1 left-0 w-full h-px bg-gradient-to-r from-purple-500 to-transparent"></span>
-                      </span>
-                    </h3>
-                    <div className="prose prose-lg prose-invert max-w-none text-gray-300 relative z-10">
-                      {formattedSummary}
-                    </div>
-                  </motion.div>
+                      <h3 className="text-xl font-semibold mb-6 text-gray-200 relative">
+                        <span className="inline-block relative">
+                          AI-Enhanced Summary
+                          <span className="absolute -bottom-1 left-0 w-full h-px bg-gradient-to-r from-purple-500 to-transparent"></span>
+                        </span>
+                      </h3>
+                      <div className="prose prose-lg prose-invert max-w-none text-gray-300 relative z-10">
+                        {formattedSummary}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      className="bg-gray-900/30 backdrop-blur-sm rounded-xl p-6 border border-gray-700/30 relative overflow-hidden"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.3 }}
+                      key="transcript-tab"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-blue-500/5 to-indigo-500/5 opacity-60"></div>
+                      <div className="absolute -left-40 -bottom-32 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-[100px] opacity-[0.03] animate-pulse"></div>
+
+                      <h3 className="text-xl font-semibold mb-6 text-gray-200 relative">
+                        <span className="inline-block relative">
+                          Full Transcript
+                          <span className="absolute -bottom-1 left-0 w-full h-px bg-gradient-to-r from-blue-500 to-transparent"></span>
+                        </span>
+                      </h3>
+                      <div className="prose prose-lg prose-invert max-w-none text-gray-300 relative z-10 max-h-[600px] overflow-y-auto pr-4">
+                        {formattedTranscript}
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               </motion.div>
             )}

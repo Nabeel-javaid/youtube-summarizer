@@ -3,8 +3,21 @@ import { exec, ExecException } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
+import { YoutubeTranscript } from 'youtube-transcript';
+import { OpenAI } from 'openai';
+
+// Define typescript interface for transcript item
+interface TranscriptItem {
+    text: string;
+    duration: number;
+    offset: number;
+}
 
 const execAsync = promisify(exec);
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Helper to get the absolute path to the API directory
 function getApiDirectory() {
@@ -32,102 +45,101 @@ async function findPythonCommand() {
     }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
     try {
-        const { url } = await request.json();
+        const { url } = await req.json();
 
         if (!url) {
-            return NextResponse.json(
-                { error: 'YouTube URL is required' },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: 'URL is required' }, { status: 400 });
         }
 
-        // Find the Python command
-        const pythonCommand = await findPythonCommand();
-        if (!pythonCommand) {
-            console.error('Python is not installed or not in PATH');
-            return NextResponse.json(
-                { error: 'Server configuration error: Python is not available' },
-                { status: 500 }
-            );
+        // Extract video ID from the URL
+        const videoId = extractVideoId(url);
+        if (!videoId) {
+            return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
         }
 
-        // Construct full path to script
-        const apiDir = getApiDirectory();
-        const scriptPath = path.join(apiDir, 'simple_summarizer.py');
-        const backupScriptPath = path.join(apiDir, 'youtube_summarizer.py');
-
-        // Verify script exists
-        if (!fs.existsSync(scriptPath) && !fs.existsSync(backupScriptPath)) {
-            console.error(`Scripts not found at paths: ${scriptPath} or ${backupScriptPath}`);
-            return NextResponse.json(
-                { error: 'Server configuration error: Script not found' },
-                { status: 500 }
-            );
+        // Get video transcript
+        const transcriptResponse = await YoutubeTranscript.fetchTranscript(videoId);
+        if (!transcriptResponse || transcriptResponse.length === 0) {
+            return NextResponse.json({ error: 'Unable to get transcript for this video' }, { status: 400 });
         }
 
-        // Use the available script
-        const scriptToUse = fs.existsSync(scriptPath) ? scriptPath : backupScriptPath;
-        console.log(`Using Python script: ${scriptToUse}`);
+        // Convert transcript to text
+        const transcriptText = transcriptResponse.map((item: TranscriptItem) => item.text).join(' ');
 
-        console.log(`Executing Python script: ${pythonCommand} ${scriptToUse} "${url}"`);
+        // Get video title
+        const videoTitle = await fetchVideoTitle(videoId);
 
-        // Add a timeout of 60 seconds
-        const timeoutMs = 60000;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        // Summarize transcript with OpenAI
+        const summary = await summarizeTranscript(transcriptText);
 
-        try {
-            // Execute the Python script
-            const { stdout, stderr } = await execAsync(`${pythonCommand} ${scriptToUse} "${url}"`, {
-                maxBuffer: 1024 * 1024, // Increase buffer size to 1MB
-            });
-
-            clearTimeout(timeoutId);
-
-            if (stderr) {
-                console.log('Python script debug logs:', stderr);
-            }
-
-            // Try to parse the JSON output
-            try {
-                const result = JSON.parse(stdout);
-                return NextResponse.json(result);
-            } catch (parseError) {
-                console.error('Failed to parse Python output as JSON:', parseError);
-                console.error('Raw output:', stdout);
-                return NextResponse.json(
-                    { error: 'Invalid response from summarization script' },
-                    { status: 500 }
-                );
-            }
-        } catch (error) {
-            clearTimeout(timeoutId);
-
-            const execError = error as ExecException & { stderr?: string };
-
-            if (execError.name === 'AbortError') {
-                console.error('Python script execution timed out after 60 seconds');
-                return NextResponse.json(
-                    { error: 'Summarization took too long and timed out' },
-                    { status: 504 }
-                );
-            }
-
-            console.error('Python script execution error:', execError);
-            console.error('Stderr:', execError.stderr);
-
-            return NextResponse.json(
-                { error: 'Error running summarization script: ' + (execError.stderr || execError.message) },
-                { status: 500 }
-            );
-        }
+        return NextResponse.json({
+            summary,
+            transcript: transcriptText,
+            title: videoTitle,
+            videoId
+        });
     } catch (error) {
-        console.error('API error:', error);
-        return NextResponse.json(
-            { error: 'Failed to summarize the video: ' + (error instanceof Error ? error.message : String(error)) },
-            { status: 500 }
-        );
+        console.error('Error summarizing video:', error);
+        return NextResponse.json({ error: 'Failed to summarize video' }, { status: 500 });
+    }
+}
+
+function extractVideoId(url: string): string | null {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+
+    return (match && match[2].length === 11) ? match[2] : null;
+}
+
+async function fetchVideoTitle(videoId: string): Promise<string> {
+    try {
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${process.env.YOUTUBE_API_KEY}&part=snippet`);
+        const data = await response.json();
+
+        if (data.items && data.items.length > 0) {
+            return data.items[0].snippet.title;
+        }
+        return 'Unknown Video Title';
+    } catch (error) {
+        console.error('Error fetching video title:', error);
+        return 'Unknown Video Title';
+    }
+}
+
+async function summarizeTranscript(transcript: string): Promise<string> {
+    try {
+        const response = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo-16k",
+            messages: [
+                {
+                    "role": "system",
+                    "content": `You are an AI assistant specialized in summarizing YouTube video transcripts. 
+          Your task is to provide a comprehensive, well-structured summary of the transcript in clear, concise language.
+          
+          Follow these guidelines:
+          1. Organize the summary into paragraphs with logical flow
+          2. Identify and include the key points, main arguments, and important details
+          3. Maintain the original meaning and intent while improving grammar and clarity
+          4. Use proper punctuation and correct any grammatical errors from the transcript
+          5. Format the summary with clear paragraph breaks (use double line breaks between paragraphs)
+          6. Keep your tone neutral and informative
+          7. Don't include phrases like "the transcript discusses" or "in this video"
+          8. Focus on providing valuable information to someone who hasn't watched the video`
+                },
+                {
+                    "role": "user",
+                    "content": `Please summarize the following YouTube transcript:\n\n${transcript}`
+                }
+            ],
+            temperature: 0.5,
+            max_tokens: 4000,
+        });
+
+        return response.choices[0].message.content || 'Summary not available';
+    } catch (error) {
+        console.error('Error calling OpenAI:', error);
+        throw new Error('Failed to generate summary');
     }
 } 
