@@ -1,0 +1,7 @@
+youtube-transcript-api==0.6.1
+numpy<2.0.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.0
+transformers==4.37.2
+--find-links https://download.pytorch.org/whl/torch_stable.html
+sentencepiece==0.1.99
