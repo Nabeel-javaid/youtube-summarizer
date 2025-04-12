@@ -80,7 +80,7 @@ export default function Home() {
     .map((paragraph, index) => (
       <motion.p
         key={index}
-        className="mb-4"
+        className="mb-6 leading-relaxed"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: index * 0.05 }}
@@ -276,8 +276,8 @@ export default function Home() {
                     <button
                       onClick={() => setActiveTab('summary')}
                       className={`px-4 py-3 font-medium text-sm transition-all duration-300 ${activeTab === 'summary'
-                          ? 'text-purple-400 border-b-2 border-purple-500'
-                          : 'text-gray-400 hover:text-gray-300'
+                        ? 'text-purple-400 border-b-2 border-purple-500'
+                        : 'text-gray-400 hover:text-gray-300'
                         }`}
                     >
                       AI Summary
@@ -285,8 +285,8 @@ export default function Home() {
                     <button
                       onClick={() => setActiveTab('transcript')}
                       className={`px-4 py-3 font-medium text-sm transition-all duration-300 ${activeTab === 'transcript'
-                          ? 'text-purple-400 border-b-2 border-purple-500'
-                          : 'text-gray-400 hover:text-gray-300'
+                        ? 'text-purple-400 border-b-2 border-purple-500'
+                        : 'text-gray-400 hover:text-gray-300'
                         }`}
                     >
                       Full Transcript

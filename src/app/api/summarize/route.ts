@@ -65,18 +65,22 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unable to get transcript for this video' }, { status: 400 });
         }
 
-        // Convert transcript to text
-        const transcriptText = transcriptResponse.map((item: TranscriptItem) => item.text).join(' ');
+        // Convert transcript to text and format it properly
+        const formattedTranscript = formatTranscript(transcriptResponse);
 
         // Get video title
-        const videoTitle = await fetchVideoTitle(videoId);
+        let videoTitle = await fetchVideoTitle(videoId);
+        if (!videoTitle || videoTitle === 'Unknown Video Title') {
+            // Try alternate method to get the title
+            videoTitle = await fetchVideoTitleWithFetch(videoId);
+        }
 
         // Summarize transcript with OpenAI
-        const summary = await summarizeTranscript(transcriptText);
+        const summary = await summarizeTranscript(formattedTranscript);
 
         return NextResponse.json({
             summary,
-            transcript: transcriptText,
+            transcript: formattedTranscript,
             title: videoTitle,
             videoId
         });
@@ -93,18 +97,106 @@ function extractVideoId(url: string): string | null {
     return (match && match[2].length === 11) ? match[2] : null;
 }
 
+function formatTranscript(transcriptItems: TranscriptItem[]): string {
+    // Group transcript items into sentences and paragraphs
+    let transcript = '';
+    let currentSentence = '';
+    let paragraphs: string[] = [];
+
+    // First pass: combine into sentences
+    for (let i = 0; i < transcriptItems.length; i++) {
+        let text = transcriptItems[i].text.trim();
+
+        // Fix common HTML entities
+        text = text.replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&#39;/g, "'")
+            .replace(/&quot;/g, '"');
+
+        // Add space between text segments if needed
+        if (currentSentence && !currentSentence.endsWith(' ') && !text.startsWith(' ')) {
+            currentSentence += ' ';
+        }
+
+        currentSentence += text;
+
+        // If this text ends with sentence-ending punctuation or it's the last item
+        if (text.match(/[.!?]$/) || i === transcriptItems.length - 1) {
+            // Add period at the end if missing
+            if (!currentSentence.match(/[.!?]$/)) {
+                currentSentence += '.';
+            }
+
+            // Capitalize the first letter of the sentence if it's not already
+            if (currentSentence.length > 0 && /[a-z]/.test(currentSentence[0])) {
+                currentSentence = currentSentence[0].toUpperCase() + currentSentence.slice(1);
+            }
+
+            // Add to transcript
+            transcript += currentSentence + ' ';
+
+            // Reset current sentence
+            currentSentence = '';
+
+            // Create a new paragraph every 3-5 sentences
+            if ((transcript.match(/[.!?]/g) || []).length >= 4) {
+                paragraphs.push(transcript.trim());
+                transcript = '';
+            }
+        }
+    }
+
+    // Add any remaining text as a paragraph
+    if (transcript.trim()) {
+        paragraphs.push(transcript.trim());
+    }
+
+    return paragraphs.join('\n\n');
+}
+
 async function fetchVideoTitle(videoId: string): Promise<string> {
     try {
+        if (!process.env.YOUTUBE_API_KEY) {
+            console.warn('YOUTUBE_API_KEY is not set in environment variables');
+            return 'YouTube Video';
+        }
+
         const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${process.env.YOUTUBE_API_KEY}&part=snippet`);
         const data = await response.json();
 
         if (data.items && data.items.length > 0) {
             return data.items[0].snippet.title;
         }
-        return 'Unknown Video Title';
+        return 'YouTube Video';
     } catch (error) {
         console.error('Error fetching video title:', error);
-        return 'Unknown Video Title';
+        return 'YouTube Video';
+    }
+}
+
+async function fetchVideoTitleWithFetch(videoId: string): Promise<string> {
+    try {
+        // Try to fetch the title directly from the YouTube page
+        const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+        const html = await response.text();
+
+        // Extract title from HTML using regex
+        const titleMatch = html.match(/<title>(.*?)<\/title>/);
+        if (titleMatch && titleMatch[1]) {
+            return titleMatch[1].replace(' - YouTube', '');
+        }
+
+        // Try another method (og:title meta tag)
+        const ogTitleMatch = html.match(/<meta property="og:title" content="(.*?)"/);
+        if (ogTitleMatch && ogTitleMatch[1]) {
+            return ogTitleMatch[1];
+        }
+
+        return 'YouTube Video';
+    } catch (error) {
+        console.error('Error fetching video title with fetch:', error);
+        return 'YouTube Video';
     }
 }
 
