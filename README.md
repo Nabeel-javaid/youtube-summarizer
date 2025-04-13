@@ -60,5 +60,4 @@ A modern web application that takes a YouTube video URL and generates a concise 
 8.  The frontend displays the summary and transcript, allowing users to switch between them and copy the content.
 
 ## License
-
 MIT
