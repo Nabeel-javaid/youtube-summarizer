@@ -14,69 +14,50 @@ A modern web application that takes a YouTube video URL and generates a concise 
 
 ## Tech Stack
 
-- **Frontend**: Next.js, React, TailwindCSS, Framer Motion
-- **Backend**: Next.js API routes
-- **AI**: OpenAI GPT API for generating summaries
-- **Deployment**: Vercel
+- **Framework**: Next.js
+- **Language**: TypeScript
+- **UI**: React, TailwindCSS, Framer Motion
+- **API**: Next.js API Routes (Node.js runtime)
+- **AI**: OpenAI GPT API
 
 ## Development Setup
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/youtube-summarizer.git
-   cd youtube-summarizer
-   ```
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Nabeel-javaid/youtube-summarizer.git
+    cd youtube-summarizer
+    ```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
 
-3. Set up environment variables:
-   - Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Add your OpenAI API key to `.env`
-   - Optionally add your YouTube API key for better title fetching
+3.  **Set up environment variables**:
+    - Create a `.env` file in the root of the project.
+    - Add your OpenAI API key to the `.env` file:
+      ```
+      OPENAI_API_KEY=your_openai_api_key_here
+      ```
+    - Obtain your key from [OpenAI API Keys](https://platform.openai.com/api-keys).
 
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
+4.  **Run the development server**:
+    ```bash
+    npm run dev
+    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Environment Variables
-
-The application requires the following environment variables:
-
-- `OPENAI_API_KEY`: Your OpenAI API key for generating summaries
-- `YOUTUBE_API_KEY` (optional): YouTube Data API key for fetching video metadata
-
-You can obtain these keys from:
-- [OpenAI API Keys](https://platform.openai.com/api-keys)
-- [Google Cloud Console](https://console.cloud.google.com/) (for YouTube API)
-
-## Deployment on Vercel
-
-This project is configured for easy deployment on Vercel:
-
-1. Push your code to a GitHub repository
-2. Sign up for a [Vercel account](https://vercel.com/)
-3. Import your GitHub repository in Vercel
-4. Add your environment variables in the Vercel project settings
-5. Deploy
+5.  Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## How It Works
 
-1. The frontend collects a YouTube URL from the user
-2. The URL is sent to the Next.js API route
-3. The API extracts the video ID and fetches the transcript
-4. The transcript is formatted for readability with proper paragraphs
-5. The formatted transcript is sent to OpenAI for summarization
-6. Both the summary and transcript are returned to the frontend and displayed to the user
-7. Users can switch between viewing the summary and full transcript
+1.  The frontend collects a YouTube URL from the user.
+2.  The URL is sent to the Next.js API route (`/api/summarize`).
+3.  The API route (running on Node.js) extracts the video ID.
+4.  It fetches the transcript using the `youtube-captions-scraper` library.
+5.  The transcript text is formatted into readable paragraphs.
+6.  The formatted transcript is sent to the OpenAI API (GPT model) for summarization.
+7.  Both the AI-generated summary and the formatted transcript are returned to the frontend.
+8.  The frontend displays the summary and transcript, allowing users to switch between them and copy the content.
 
 ## License
 
