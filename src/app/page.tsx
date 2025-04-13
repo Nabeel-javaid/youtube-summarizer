@@ -38,7 +38,7 @@ export default function Home() {
     try {
       console.log(`Submitting request to API for: ${url}`);
 
-      // Use the Pages Router API endpoint
+      // Use the absolute path for the API endpoint
       const apiEndpoint = '/api/summarize';
       console.log(`Using API endpoint: ${apiEndpoint}`);
 
@@ -54,16 +54,9 @@ export default function Home() {
 
       // Check if the response is OK and contains JSON
       if (!response.ok) {
-        // Try to get error message from response
-        try {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `API error: ${response.status}`);
-        } catch {
-          // If not JSON, get text
-          const errorText = await response.text();
-          console.error('Non-JSON error response:', errorText);
-          throw new Error(`API error (${response.status}): ${errorText.substring(0, 100)}...`);
-        }
+        const errorText = await response.text().catch(() => 'Could not read error details');
+        console.error('Error response:', errorText);
+        throw new Error(`API error (${response.status}): ${errorText.substring(0, 100)}`);
       }
 
       // Parse the JSON response

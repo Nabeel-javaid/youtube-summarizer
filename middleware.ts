@@ -13,6 +13,7 @@ export function middleware(request: NextRequest) {
                     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
                     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                     'Access-Control-Max-Age': '86400',
+                    'Content-Type': 'application/json',
                 },
             });
         }
@@ -22,6 +23,7 @@ export function middleware(request: NextRequest) {
         response.headers.set('Access-Control-Allow-Origin', '*');
         response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        response.headers.set('Content-Type', 'application/json');
 
         return response;
     }
@@ -31,5 +33,5 @@ export function middleware(request: NextRequest) {
 
 // Only run middleware on API routes
 export const config = {
-    matcher: '/api/:path*',
+    matcher: ['/api/:path*'],
 }; 

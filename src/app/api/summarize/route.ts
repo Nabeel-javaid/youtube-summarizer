@@ -55,10 +55,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Parse request body
+        // Parse request body - clone request to avoid reading the body twice
         let body;
         try {
-            body = await request.json();
+            const requestClone = request.clone();
+            body = await requestClone.json();
         } catch (parseError) {
             console.error('Error parsing request JSON:', parseError);
             return NextResponse.json(
