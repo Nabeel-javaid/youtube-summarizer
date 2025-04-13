@@ -1,37 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Middleware might not be needed if next.config.ts handles headers adequately.
+// If kept, ensure it doesn't conflict with next.config.ts headers.
 export function middleware(request: NextRequest) {
-    // Only apply CORS headers to API routes
-    if (request.nextUrl.pathname.startsWith('/api/')) {
-        // For OPTIONS requests, return 204 No Content
-        if (request.method === 'OPTIONS') {
-            return new NextResponse(null, {
-                status: 204,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                    'Access-Control-Max-Age': '86400',
-                    'Content-Type': 'application/json',
-                },
-            });
-        }
+    // Example: Only log the request path
+    console.log('Middleware processed request for:', request.nextUrl.pathname);
 
-        // For other requests, add CORS headers
-        const response = NextResponse.next();
-        response.headers.set('Access-Control-Allow-Origin', '*');
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        response.headers.set('Content-Type', 'application/json');
-
-        return response;
-    }
-
+    // Allow the request to proceed without modifying headers here
     return NextResponse.next();
 }
 
-// Only run middleware on API routes
+// Apply middleware to API routes if still needed for other purposes
 export const config = {
-    matcher: ['/api/:path*'],
+    matcher: '/api/:path*',
 }; 
