@@ -39,13 +39,14 @@ export default function Home() {
       console.log(`Submitting request to API for: ${url}`);
 
       // Use the absolute path for the API endpoint
-      const apiEndpoint = '/api/summarize';
+      const apiEndpoint = window.location.origin + '/api/summarize';
       console.log(`Using API endpoint: ${apiEndpoint}`);
 
       const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ url }),
       });

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import { getSubtitles, Caption } from 'youtube-captions-scraper';
 
-// Explicitly set which runtime to use - use Edge for better compatibility
-export const runtime = 'edge';
+// Change to Node.js runtime instead of Edge
+export const runtime = 'nodejs';
 
 // Force dynamic rendering for API routes
 export const dynamic = 'force-dynamic';
@@ -55,11 +55,10 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Parse request body - clone request to avoid reading the body twice
+        // Parse request body - DO NOT clone in Node.js environment
         let body;
         try {
-            const requestClone = request.clone();
-            body = await requestClone.json();
+            body = await request.json();
         } catch (parseError) {
             console.error('Error parsing request JSON:', parseError);
             return NextResponse.json(
