@@ -8,7 +8,6 @@ export default function Home() {
   const [summary, setSummary] = useState('');
   const [transcript, setTranscript] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
-  const [videoId, setVideoId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -24,7 +23,7 @@ export default function Home() {
 
     // Reset states
     setLoading(true);
-    setError(null);
+    setError('');
     setSummary('');
     setTranscript('');
     setVideoTitle('');
@@ -59,7 +58,7 @@ export default function Home() {
         try {
           const errorData = await response.json();
           throw new Error(errorData.error || `API error: ${response.status}`);
-        } catch (jsonError) {
+        } catch {
           // If not JSON, get text
           const errorText = await response.text();
           console.error('Non-JSON error response:', errorText);
@@ -255,25 +254,6 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
               >
-                {videoId && (
-                  <div className="aspect-video w-full bg-black relative">
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 z-0"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.5 }}
-                    ></motion.div>
-                    <iframe
-                      className="w-full h-full relative z-10"
-                      src={`https://www.youtube.com/embed/${videoId}`}
-                      title="YouTube video player"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen>
-                    </iframe>
-                  </div>
-                )}
-
                 <div className="p-6 md:p-8">
                   <motion.div
                     className="flex items-center justify-between mb-6"

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ function corsHeaders() {
 }
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS(req: NextRequest) {
+export async function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
         headers: corsHeaders(),
@@ -21,7 +21,7 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 // Handle GET requests
-export async function GET(req: NextRequest) {
+export async function GET() {
     return NextResponse.json(
         { status: 'API is running' },
         { headers: corsHeaders() }
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 }
 
 // Handle POST requests
-export async function POST(req: NextRequest) {
+export async function POST() {
     return NextResponse.json(
         { error: 'This is a catch-all route. Please use a specific API endpoint.' },
         { status: 400, headers: corsHeaders() }

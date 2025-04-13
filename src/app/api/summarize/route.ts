@@ -26,7 +26,7 @@ function corsHeaders() {
 }
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
     return new NextResponse(null, {
         status: 204,
         headers: corsHeaders(),
@@ -220,7 +220,7 @@ async function fetchVideoTitle(videoId: string): Promise<string> {
         }
 
         return 'YouTube Video';
-    } catch (error) {
+    } catch {
         return 'YouTube Video';
     }
 }
@@ -269,7 +269,7 @@ async function summarizeTranscript(transcript: string): Promise<string> {
         }
 
         return response.choices[0].message.content;
-    } catch (error) {
-        throw new Error(`Failed to generate summary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch {
+        throw new Error(`Failed to generate summary: Unknown error`);
     }
 } 
